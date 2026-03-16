@@ -12,6 +12,9 @@ type GenerateListingResponse =
   | ListingResult
   | {
       error?: string;
+      title?: unknown;
+      tags?: unknown;
+      description?: unknown;
     };
 
 const initialResult: ListingResult = {
@@ -59,7 +62,8 @@ export default function DashboardPage() {
       const data = (await response.json()) as GenerateListingResponse;
 
       if (!response.ok) {
-        setErrorMessage(data.error ?? "Unable to generate listing right now.");
+        const apiError = "error" in data ? data.error : undefined;
+        setErrorMessage(apiError ?? "Unable to generate listing right now.");
         return;
       }
 
