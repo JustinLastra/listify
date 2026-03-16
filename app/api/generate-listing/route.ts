@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
+export const runtime = "nodejs";
+
 type GenerateListingRequest = {
   product_name?: string;
   audience?: string;
@@ -166,10 +168,31 @@ export async function POST(request: Request) {
       tags: safeTags,
       description: safeDescription,
     });
-  } catch {
+  } catch (error: unknown) {
+    const fallbackMessage =
+      error instanceof Error ? error.message : "Unknown OpenAI error.";
+    const status =
+      typeof (error as { status?: unknown })?.status === "number"
+        ? ((error as { status: number }).status as number)
+        : 502;
+    const providerMessage =
+      typeof (error as { error?: { message?: unknown } })?.error?.message ===
+      "string"
+        ? ((error as { error: { message: string } }).error.message as string)
+        : fallbackMessage;
+    const safeMessage = providerMessage.replace(
+      /sk-[A-Za-z0-9_-]+/g,
+      "[redacted-key]",
+    );
+
+    console.error("OpenAI listing generation failed", {
+      status,
+      message: safeMessage,
+    });
+
     return NextResponse.json(
-      { error: "Failed to generate listing from OpenAI." },
-      { status: 502 },
+      { error: `Failed to generate listing from OpenAI: ${safeMessage}` },
+      { status: status >= 400 && status <= 599 ? status : 502 },
     );
   }
 }
